@@ -12,13 +12,17 @@ RUN apt-get update \
 
 COPY pyproject.toml ./
 COPY app ./app
+COPY alembic.ini ./
+COPY alembic ./alembic
+COPY scripts ./scripts
 
 RUN pip install --upgrade pip \
-    && pip install .
+    && pip install . \
+    && chmod +x /app/scripts/entrypoint.sh
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=25s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/scripts/entrypoint.sh"]
