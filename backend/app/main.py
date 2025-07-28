@@ -6,6 +6,7 @@ from app.api.health import router as health_router
 from app.api.incidents import router as incidents_router
 from app.api.services import router as services_router
 from app.core.config import get_settings
+from app.core.metrics import setup_metrics
 
 settings = get_settings()
 
@@ -16,9 +17,11 @@ logging.basicConfig(
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.2.0",
+    version="0.3.0",
     description="AI-augmented API observability and auto-debugging platform",
 )
+
+setup_metrics(app)
 
 app.include_router(health_router)
 app.include_router(services_router, prefix="/api/v1")
@@ -29,6 +32,7 @@ app.include_router(incidents_router, prefix="/api/v1")
 def root() -> dict[str, str]:
     return {
         "service": settings.app_name,
-        "version": "0.2.0",
+        "version": "0.3.0",
         "docs": "/docs",
+        "metrics": "/metrics",
     }
