@@ -2,7 +2,7 @@
 
 Centralized platform for collecting and correlating application logs, metrics, and distributed traces across services. Detects anomalies, surfaces incidents, and uses an AI-assisted layer to summarize root causes and suggest next investigation steps.
 
-> **Status:** Early scaffolding. The API and Postgres stack are bootable; ingestion, detection, and AI analysis land in later iterations.
+> **Status:** Core API + Postgres models, plus local Prometheus/Grafana metrics stack. Log/trace ingestion and incident detection come next.
 
 ## Goals
 
@@ -27,7 +27,9 @@ Centralized platform for collecting and correlating application logs, metrics, a
 
 Microservices emit telemetry via OpenTelemetry → Collector → Prometheus / Elasticsearch / trace backend. This platform queries those backends, correlates signals, detects incidents, and runs AI analysis. For local demos, a synthetic telemetry generator will stand in for real services.
 
-## Getting started (Phase 1)
+Today the API exposes Prometheus metrics at `/metrics`. Prometheus scrapes that endpoint; Grafana is provisioned with a Prometheus datasource and a starter API overview dashboard.
+
+## Getting started
 
 ### Prerequisites
 
@@ -41,11 +43,22 @@ cp .env.example .env
 docker compose up --build
 ```
 
-API: `http://localhost:8000`
+| Service | URL |
+|---------|-----|
+| API | http://localhost:8000 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin/admin by default) |
+
+Useful API routes:
 
 - Health: `GET /health`
 - Readiness: `GET /ready`
-- OpenAPI docs: `http://localhost:8000/docs`
+- Metrics: `GET /metrics`
+- Services: `GET/POST /api/v1/services`
+- Incidents: `GET/POST /api/v1/incidents`
+- OpenAPI docs: http://localhost:8000/docs
+
+Migrations run automatically on API container start (`alembic upgrade head`).
 
 ### Local development (API only)
 
@@ -54,6 +67,7 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -67,7 +81,9 @@ pytest
 ## Project layout
 
 ```
-backend/          FastAPI application
+backend/                 FastAPI application (API, models, schemas, db)
+prometheus/              Prometheus scrape config
+grafana/provisioning/    Datasource + starter dashboard
 docker-compose.yml
 .env.example
 ```
