@@ -22,6 +22,14 @@ class Settings(BaseSettings):
         "postgresql+psycopg://observability:observability@localhost:5432/observability"
     )
 
+    elasticsearch_url: str = "http://localhost:9200"
+    elasticsearch_logs_index: str = "observability-logs"
+
+    redis_url: str = "redis://localhost:6379/0"
+    redis_logs_stream: str = "telemetry.logs"
+    redis_incident_events_stream: str = "telemetry.incident-events"
+    redis_detection_consumer_group: str = "detection-workers"
+
 
 @lru_cache
 def get_settings() -> Settings:
