@@ -16,6 +16,40 @@ services:
       retries: 10
       start_period: 10s
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      cluster.name: observability-local
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
   api:
     build:
       context: ./backend
@@ -27,8 +61,18 @@ services:
       APP_NAME: ${APP_NAME:-observability-platform}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://observability:observability@postgres:5432/observability}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      ELASTICSEARCH_LOGS_INDEX: ${ELASTICSEARCH_LOGS_INDEX:-observability-logs}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_LOGS_STREAM: ${REDIS_LOGS_STREAM:-telemetry.logs}
+      REDIS_INCIDENT_EVENTS_STREAM: ${REDIS_INCIDENT_EVENTS_STREAM:-telemetry.incident-events}
+      REDIS_DETECTION_CONSUMER_GROUP: ${REDIS_DETECTION_CONSUMER_GROUP:-detection-workers}
     depends_on:
       postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -65,5 +109,7 @@ services:
 
 volumes:
   postgres_data:
+  elasticsearch_data:
+  redis_data:
   prometheus_data:
   grafana_data:
