@@ -2,7 +2,7 @@
 
 Centralized platform for collecting and correlating application logs, metrics, and distributed traces across services. Detects anomalies, surfaces incidents, and uses an AI-assisted layer to summarize root causes and suggest next investigation steps.
 
-> **Status:** Core API + Postgres models, plus local Prometheus/Grafana metrics stack. Log/trace ingestion and incident detection come next.
+> **Status:** Core API, Postgres models, Prometheus/Grafana metrics, Elasticsearch log search/correlation, and a Redis Streams publisher skeleton. Trace backend and automated detection come next.
 
 ## Goals
 
@@ -27,7 +27,11 @@ Centralized platform for collecting and correlating application logs, metrics, a
 
 Microservices emit telemetry via OpenTelemetry → Collector → Prometheus / Elasticsearch / trace backend. This platform queries those backends, correlates signals, detects incidents, and runs AI analysis. For local demos, a synthetic telemetry generator will stand in for real services.
 
-Today the API exposes Prometheus metrics at `/metrics`. Prometheus scrapes that endpoint; Grafana is provisioned with a Prometheus datasource and a starter API overview dashboard.
+Current local path:
+
+- API metrics → Prometheus → Grafana
+- Structured logs → Elasticsearch (search/correlate APIs)
+- Log/incident events → Redis Streams (publisher + consumer group skeleton)
 
 ## Getting started
 
@@ -48,6 +52,8 @@ docker compose up --build
 | API | http://localhost:8000 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin/admin by default) |
+| Elasticsearch | http://localhost:9200 |
+| Redis | localhost:6379 |
 
 Useful API routes:
 
@@ -56,6 +62,9 @@ Useful API routes:
 - Metrics: `GET /metrics`
 - Services: `GET/POST /api/v1/services`
 - Incidents: `GET/POST /api/v1/incidents`
+- Logs ingest: `POST /api/v1/logs`
+- Logs search: `GET /api/v1/logs/search`
+- Logs correlate: `GET /api/v1/logs/correlate?trace_id=...`
 - OpenAPI docs: http://localhost:8000/docs
 
 Migrations run automatically on API container start (`alembic upgrade head`).
@@ -71,6 +80,8 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Point `ELASTICSEARCH_URL` and `REDIS_URL` at local containers when running the API outside Compose.
+
 ### Tests
 
 ```bash
@@ -81,7 +92,7 @@ pytest
 ## Project layout
 
 ```
-backend/                 FastAPI application (API, models, schemas, db)
+backend/                 FastAPI application (API, models, schemas, clients, services)
 prometheus/              Prometheus scrape config
 grafana/provisioning/    Datasource + starter dashboard
 docker-compose.yml
