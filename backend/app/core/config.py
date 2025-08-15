@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     redis_incident_events_stream: str = "telemetry.incident-events"
     redis_detection_consumer_group: str = "detection-workers"
 
+    jaeger_query_url: str = "http://localhost:16686"
+    jaeger_zipkin_url: str = "http://localhost:9411"
+    jaeger_timeout_seconds: float = 10.0
+
 
 @lru_cache
 def get_settings() -> Settings:
