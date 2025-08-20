@@ -3,10 +3,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.correlation import router as correlation_router
 from app.api.health import router as health_router
 from app.api.incidents import router as incidents_router
 from app.api.logs import router as logs_router
 from app.api.services import router as services_router
+from app.api.traces import router as traces_router
 from app.clients.elasticsearch import ensure_logs_index
 from app.core.config import get_settings
 from app.core.metrics import setup_metrics
@@ -40,7 +42,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.4.0",
+    version="0.5.0",
     description="AI-augmented API observability and auto-debugging platform",
     lifespan=lifespan,
 )
@@ -51,13 +53,15 @@ app.include_router(health_router)
 app.include_router(services_router, prefix="/api/v1")
 app.include_router(incidents_router, prefix="/api/v1")
 app.include_router(logs_router, prefix="/api/v1")
+app.include_router(traces_router, prefix="/api/v1")
+app.include_router(correlation_router, prefix="/api/v1")
 
 
 @app.get("/")
 def root() -> dict[str, str]:
     return {
         "service": settings.app_name,
-        "version": "0.4.0",
+        "version": "0.5.0",
         "docs": "/docs",
         "metrics": "/metrics",
     }
