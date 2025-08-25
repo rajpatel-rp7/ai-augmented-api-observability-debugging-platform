@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     jaeger_zipkin_url: str = "http://localhost:9411"
     jaeger_timeout_seconds: float = 10.0
 
+    # Rule-based detection
+    detection_enabled: bool = True
+    detection_interval_seconds: int = 60
+    detection_lookback_minutes: int = 15
+    detection_error_log_threshold: int = 5
+    detection_error_log_window_minutes: int = 5
+    detection_trace_latency_ms: float = 2000.0
+    detection_trace_error_threshold: int = 1
+
 
 @lru_cache
 def get_settings() -> Settings:
