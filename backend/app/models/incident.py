@@ -79,6 +79,8 @@ class Incident(Base):
         index=True,
     )
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fingerprint: Mapped[str | None] = mapped_column(String(256), nullable=True, index=True)
+    detection_rule: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

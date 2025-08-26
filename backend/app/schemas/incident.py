@@ -33,6 +33,8 @@ class IncidentRead(BaseModel):
     status: IncidentStatus
     severity: IncidentSeverity
     summary: str | None
+    fingerprint: str | None = None
+    detection_rule: str | None = None
     started_at: datetime
     resolved_at: datetime | None
     created_at: datetime
