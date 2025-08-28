@@ -1,9 +1,11 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app.api.correlation import router as correlation_router
+from app.api.detection import router as detection_router
 from app.api.health import router as health_router
 from app.api.incidents import router as incidents_router
 from app.api.logs import router as logs_router
@@ -13,6 +15,7 @@ from app.clients.elasticsearch import ensure_logs_index
 from app.core.config import get_settings
 from app.core.metrics import setup_metrics
 from app.services.streams import StreamPublisher, StreamServiceError
+from app.workers.detection import detection_loop
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -37,12 +40,21 @@ async def lifespan(_app: FastAPI):
     except StreamServiceError as exc:
         logger.warning("Redis Streams bootstrap skipped: %s", exc)
 
+    stop_event = asyncio.Event()
+    detection_task: asyncio.Task | None = None
+    if settings.detection_enabled:
+        detection_task = asyncio.create_task(detection_loop(stop_event))
+
     yield
+
+    stop_event.set()
+    if detection_task is not None:
+        await detection_task
 
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.5.0",
+    version="0.6.0",
     description="AI-augmented API observability and auto-debugging platform",
     lifespan=lifespan,
 )
@@ -55,13 +67,14 @@ app.include_router(incidents_router, prefix="/api/v1")
 app.include_router(logs_router, prefix="/api/v1")
 app.include_router(traces_router, prefix="/api/v1")
 app.include_router(correlation_router, prefix="/api/v1")
+app.include_router(detection_router, prefix="/api/v1")
 
 
 @app.get("/")
 def root() -> dict[str, str]:
     return {
         "service": settings.app_name,
-        "version": "0.5.0",
+        "version": "0.6.0",
         "docs": "/docs",
         "metrics": "/metrics",
     }
