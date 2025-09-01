@@ -1,8 +1,17 @@
+import os
+
+# Disable background detection while tests import the FastAPI app.
+os.environ.setdefault("DETECTION_ENABLED", "false")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+
+from app.core.config import get_settings
+
+get_settings.cache_clear()
 
 from app.db.base import Base
 from app.db.session import get_db
