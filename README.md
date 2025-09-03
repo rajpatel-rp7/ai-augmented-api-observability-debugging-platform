@@ -2,7 +2,7 @@
 
 Centralized platform for collecting and correlating application logs, metrics, and distributed traces across services. Detects anomalies, surfaces incidents, and uses an AI-assisted layer to summarize root causes and suggest next investigation steps.
 
-> **Status:** Core API, metrics stack, Elasticsearch logs, Redis Streams skeleton, and Jaeger traces with log/trace correlation by `trace_id`. Automated detection and AI analysis come next.
+> **Status:** Telemetry collection/correlation plus rule-based incident detection are in place. AI-assisted analysis and the React dashboard come next.
 
 ## Goals
 
@@ -33,7 +33,8 @@ Current local path:
 - Structured logs → Elasticsearch (search/correlate APIs)
 - Traces → Jaeger (query + Zipkin ingest for local demos)
 - Correlate logs + spans by `trace_id`
-- Log/incident events → Redis Streams (publisher + consumer group skeleton)
+- Rule-based detection creates Postgres incidents and publishes Redis incident events
+- Background detection loop runs on a configurable interval
 
 ## Getting started
 
@@ -63,11 +64,10 @@ Useful API routes:
 - Health: `GET /health`
 - Readiness: `GET /ready`
 - Metrics: `GET /metrics`
-- Services: `GET/POST /api/v1/services`
-- Incidents: `GET/POST /api/v1/incidents`
-- Logs ingest/search/correlate: `/api/v1/logs`
-- Traces ingest/search/get: `/api/v1/traces`
-- Cross-signal correlation: `GET /api/v1/correlate/trace/{trace_id}`
+- Services / Incidents: `/api/v1/services`, `/api/v1/incidents`
+- Logs / Traces / Correlate: `/api/v1/logs`, `/api/v1/traces`, `/api/v1/correlate/trace/{trace_id}`
+- Detection rules: `GET /api/v1/detection/rules`
+- Run detection: `POST /api/v1/detection/run`
 - OpenAPI docs: http://localhost:8000/docs
 
 Migrations run automatically on API container start (`alembic upgrade head`).
@@ -83,8 +83,6 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Point `ELASTICSEARCH_URL`, `REDIS_URL`, `JAEGER_QUERY_URL`, and `JAEGER_ZIPKIN_URL` at local containers when running the API outside Compose.
-
 ### Tests
 
 ```bash
@@ -95,7 +93,7 @@ pytest
 ## Project layout
 
 ```
-backend/                 FastAPI application (API, models, schemas, clients, services)
+backend/                 FastAPI application (API, models, schemas, clients, services, workers)
 prometheus/              Prometheus scrape config
 grafana/provisioning/    Datasource + starter dashboard
 docker-compose.yml
