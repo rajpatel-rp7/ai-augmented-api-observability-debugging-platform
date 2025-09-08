@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.analysis import router as analysis_router
 from app.api.correlation import router as correlation_router
 from app.api.detection import router as detection_router
 from app.api.health import router as health_router
@@ -13,6 +14,7 @@ from app.api.services import router as services_router
 from app.api.traces import router as traces_router
 from app.clients.elasticsearch import ensure_logs_index
 from app.core.config import get_settings
+from app.core.cors import setup_cors
 from app.core.metrics import setup_metrics
 from app.services.streams import StreamPublisher, StreamServiceError
 from app.workers.detection import detection_loop
@@ -54,16 +56,21 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.6.0",
+    version="0.8.0",
     description="AI-augmented API observability and auto-debugging platform",
     lifespan=lifespan,
 )
 
 setup_metrics(app)
+setup_cors(
+    app,
+    [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()],
+)
 
 app.include_router(health_router)
 app.include_router(services_router, prefix="/api/v1")
 app.include_router(incidents_router, prefix="/api/v1")
+app.include_router(analysis_router, prefix="/api/v1")
 app.include_router(logs_router, prefix="/api/v1")
 app.include_router(traces_router, prefix="/api/v1")
 app.include_router(correlation_router, prefix="/api/v1")
@@ -74,7 +81,7 @@ app.include_router(detection_router, prefix="/api/v1")
 def root() -> dict[str, str]:
     return {
         "service": settings.app_name,
-        "version": "0.6.0",
+        "version": "0.8.0",
         "docs": "/docs",
         "metrics": "/metrics",
     }

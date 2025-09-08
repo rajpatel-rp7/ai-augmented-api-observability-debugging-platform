@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.analysis import IncidentAnalysis
     from app.models.service import Service
 
 
@@ -105,4 +106,9 @@ class Incident(Base):
     affected_services: Mapped[list[Service]] = relationship(
         secondary=incident_services,
         back_populates="incidents",
+    )
+    analyses: Mapped[list[IncidentAnalysis]] = relationship(
+        back_populates="incident",
+        cascade="all, delete-orphan",
+        order_by="IncidentAnalysis.created_at.desc()",
     )

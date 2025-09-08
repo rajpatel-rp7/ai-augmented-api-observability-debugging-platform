@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     jaeger_zipkin_url: str = "http://localhost:9411"
     jaeger_timeout_seconds: float = 10.0
 
+    cors_origins: str = "http://localhost:5173,http://localhost:3001"
+
     # Rule-based detection
     detection_enabled: bool = True
     detection_interval_seconds: int = 60
@@ -42,6 +44,13 @@ class Settings(BaseSettings):
     detection_error_log_window_minutes: int = 5
     detection_trace_latency_ms: float = 2000.0
     detection_trace_error_threshold: int = 1
+
+    # AI analysis
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    openai_timeout_seconds: float = 30.0
+    ai_analysis_enabled: bool = True
+    ai_analysis_force_stub: bool = False
 
 
 @lru_cache

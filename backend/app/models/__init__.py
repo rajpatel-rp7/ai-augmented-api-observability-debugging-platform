@@ -1,6 +1,7 @@
 """SQLAlchemy ORM models."""
 
-from app.models.incident import Incident, IncidentStatus, IncidentSeverity
+from app.models.analysis import IncidentAnalysis
+from app.models.incident import Incident, IncidentSeverity, IncidentStatus
 from app.models.service import Service
 
 __all__ = [
@@ -8,4 +9,5 @@ __all__ = [
     "Incident",
     "IncidentStatus",
     "IncidentSeverity",
+    "IncidentAnalysis",
 ]
