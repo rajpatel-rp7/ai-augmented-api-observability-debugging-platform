@@ -46,7 +46,10 @@ Thumbs.db
 # Docker
 postgres_data/
 
-# Frontend (later)
+# Frontend
 node_modules/
 dist/
 .next/
+
+# Kubernetes local secrets (never commit)
+k8s/secret.yaml

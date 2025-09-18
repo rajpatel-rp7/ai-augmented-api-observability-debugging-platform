@@ -54,9 +54,11 @@ async def lifespan(_app: FastAPI):
         await detection_task
 
 
+APP_VERSION = "0.9.0"
+
 app = FastAPI(
     title=settings.app_name,
-    version="0.8.0",
+    version=APP_VERSION,
     description="AI-augmented API observability and auto-debugging platform",
     lifespan=lifespan,
 )
@@ -81,7 +83,9 @@ app.include_router(detection_router, prefix="/api/v1")
 def root() -> dict[str, str]:
     return {
         "service": settings.app_name,
-        "version": "0.8.0",
+        "version": APP_VERSION,
         "docs": "/docs",
         "metrics": "/metrics",
+        "health": "/health",
+        "ready": "/ready",
     }
