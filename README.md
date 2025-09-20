@@ -1,139 +1,179 @@
 # AI-Augmented API Observability & Auto-Debugging Platform
 
-Centralized platform for collecting and correlating application logs, metrics, and distributed traces across services. Detects anomalies, surfaces incidents, and uses an AI-assisted layer to summarize root causes and suggest next investigation steps.
+Centralized platform for collecting and correlating application logs, metrics, and distributed traces. It detects anomalies, opens incidents, and uses an AI-assisted layer to summarize likely root causes and next investigation steps.
 
-> **Status:** Phases 1–8 — platform API, telemetry backends, detection, AI analysis, synthetic generator, and React dashboard MVP.
 
 ## Goals
 
 - Correlate telemetry (logs, metrics, traces) by service, time window, and trace ID
-- Detect abnormal behaviour (latency spikes, error rates, service failures)
+- Detect abnormal behaviour (latency spikes, error rates, failing spans)
 - Provide AI-assisted incident summaries and recommended investigation steps
-- Expose a unified API and React dashboard for system health
+- Expose a unified API and React dashboard for triage
 
 ## Tech stack
 
 | Layer | Choice |
 |-------|--------|
 | Backend | Python 3.12, FastAPI, SQLAlchemy, PostgreSQL |
-| Observability | OpenTelemetry, Prometheus, Grafana, Jaeger |
+| Observability | Prometheus, Grafana, Jaeger |
 | Logging | Elasticsearch |
 | Messaging | Redis Streams |
 | AI | OpenAI API (heuristic stub fallback) |
 | Frontend | React + TypeScript (Vite) |
 | Demo | Synthetic telemetry generator |
-| Infra | Docker Compose (local); Kubernetes (later) |
+| Infra | Docker Compose; Kubernetes manifests under `k8s/` |
 
-## Architecture (target)
+## Architecture
 
-Microservices emit telemetry via OpenTelemetry → Collector → Prometheus / Elasticsearch / trace backend. This platform queries those backends, correlates signals, detects incidents, and runs AI analysis. For local demos, the synthetic generator posts the payment-timeout scenario into the platform APIs.
+```mermaid
+flowchart LR
+  Gen[Synthetic generator] -->|logs/traces| API[FastAPI platform]
+  API --> PG[(Postgres)]
+  API --> ES[(Elasticsearch)]
+  API --> Redis[(Redis Streams)]
+  API --> Jaeger[Jaeger]
+  API --> Prom[Prometheus]
+  Prom --> Grafana[Grafana]
+  UI[React dashboard] --> API
+  Detect[Detection worker] --> API
+  AI[OpenAI / stub] --> API
+```
 
-Current local path:
+Local flow:
 
-- API metrics → Prometheus → Grafana
-- Structured logs → Elasticsearch
-- Traces → Jaeger
-- Correlate logs + spans by `trace_id`
-- Rule-based detection creates incidents
-- AI analysis summarizes incidents (OpenAI when configured, otherwise stub)
-- Generator + React dashboard under Compose profile `demo`
+1. Generator (or real collectors later) emits logs and traces into the platform APIs.
+2. Detection rules scan ES + Jaeger and create deduplicated incidents in Postgres.
+3. Operators review incidents in the React dashboard and run AI analysis.
+4. Prometheus scrapes `/metrics`; Grafana visualizes API health.
 
 ## Getting started
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- Python 3.12+ (for local runs outside Docker)
-- Node.js 20+ (for local dashboard development)
+- Python 3.12+ (optional local API/generator)
+- Node.js 20+ (optional local dashboard)
+- `kubectl` + Kind/Minikube (optional Kubernetes path)
 
 ### Run with Docker Compose
 
 ```bash
 cp .env.example .env
-# optional: set OPENAI_API_KEY in .env for live LLM analysis
-docker compose up --build
+# optional: set OPENAI_API_KEY for live LLM analysis
+make up
+# or: docker compose up --build
 ```
-
-Core stack:
 
 | Service | URL |
 |---------|-----|
 | API | http://localhost:8000 |
+| API docs | http://localhost:8000/docs |
+| Health / Ready | `/health`, `/ready` |
 | Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 (admin/admin by default) |
+| Grafana | http://localhost:3000 (`admin` / `admin`) |
 | Elasticsearch | http://localhost:9200 |
-| Redis | localhost:6379 |
+| Redis | `localhost:6379` |
 | Jaeger UI | http://localhost:16686 |
 
-Demo profile (generator + dashboard):
+### Demo profile (generator + dashboard)
 
 ```bash
-docker compose --profile demo up --build
+make up-demo
+# or: docker compose --profile demo up --build
 ```
 
 | Service | URL |
 |---------|-----|
 | React dashboard | http://localhost:5173 |
-| Generator | loops against `http://api:8000` |
+| Generator | loops against the API (`payment-timeout` scenario) |
 
-Useful API routes:
+**Suggested demo walkthrough**
+
+1. Wait for `api` to become healthy.
+2. Open the dashboard → Services should populate after the first generator burst.
+3. Click **Run detection** (or wait for the background loop) → Incidents appear.
+4. Open an incident → **Analyze with AI** (stub if no `OPENAI_API_KEY`).
+5. Optional: explore Grafana + Jaeger for the same window.
+
+### Useful API routes
 
 - Services / Incidents: `/api/v1/services`, `/api/v1/incidents`
-- Analyze incident: `POST /api/v1/incidents/{id}/analyze`
+- Analyze: `POST /api/v1/incidents/{id}/analyze`
 - Latest analysis: `GET /api/v1/incidents/{id}/analysis`
 - Detection: `GET /api/v1/detection/rules`, `POST /api/v1/detection/run`
 - Logs / Traces / Correlate: `/api/v1/logs`, `/api/v1/traces`, `/api/v1/correlate/trace/{trace_id}`
-- OpenAPI docs: http://localhost:8000/docs
 
-If `OPENAI_API_KEY` is empty (default), analysis uses a deterministic heuristic stub so demos work offline.
+Migrations run on API container start (`alembic upgrade head`).
 
-Migrations run automatically on API container start (`alembic upgrade head`).
-
-### Local development (API only)
+### Local development
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
+# API
+cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
 
-### Local dashboard
+# Dashboard
+cd frontend && npm install && npm run dev
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Synthetic generator
-
-```bash
-cd generators
-pip install -e .
+# Generator
+cd generators && pip install -e .
 python generate_telemetry.py --api-url http://localhost:8000 --burst 6
 ```
 
-### Tests
+### Tests & CI
 
 ```bash
-cd backend
-pytest
+make test
+make test-generator
+make build-frontend
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs backend, generator, and frontend build on push/PR.
+
+### Kubernetes
+
+Starter manifests live in [`k8s/`](k8s/README.md):
+
+```bash
+docker build -t observability-api:0.9.0 ./backend
+docker build -t observability-frontend:0.9.0 ./frontend
+cp k8s/secret.example.yaml k8s/secret.yaml   # edit values
+# point kustomization at secret.yaml, then:
+kubectl apply -k k8s/
 ```
 
 ## Project layout
 
 ```
-backend/                 FastAPI application (API, models, schemas, clients, services, workers)
+backend/                 FastAPI app, Alembic, tests
 frontend/                React + TypeScript dashboard MVP
-generators/              Synthetic payment-timeout telemetry emitter
-prometheus/              Prometheus scrape config
-grafana/provisioning/    Datasource + starter dashboard
+generators/              Synthetic payment-timeout emitter
+k8s/                     Namespace, ConfigMap, Secret example, deps, API, frontend
+prometheus/              Scrape config
+grafana/provisioning/    Datasource + dashboards
+.github/workflows/       CI
 docker-compose.yml
+Makefile
 .env.example
 ```
+
+## Configuration
+
+See [`.env.example`](.env.example). Notable knobs:
+
+- Detection thresholds (`DETECTION_*`)
+- AI analysis (`OPENAI_API_KEY`, `OPENAI_MODEL`, `AI_ANALYSIS_FORCE_STUB`)
+- CORS (`CORS_ORIGINS`) for the dashboard origin
+- Demo ports (`FRONTEND_PORT`, generator interval/burst)
+
+## Security notes (local / demo)
+
+- Default Compose credentials are for local demos only — change them before any shared environment.
+- API and generator images run as non-root (`uid 10001`).
+- Kubernetes secrets are supplied via `secret.example.yaml`; never commit real keys.
+- AI analysis falls back to a deterministic stub when no API key is set.
 
 ## License
 

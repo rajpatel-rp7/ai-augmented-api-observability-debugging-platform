@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.example.yaml
+  - deps.yaml
+  - api.yaml
+  - frontend.yaml
+images:
+  - name: observability-api
+    newTag: "0.9.0"
+  - name: observability-frontend
+    newTag: "0.9.0"
